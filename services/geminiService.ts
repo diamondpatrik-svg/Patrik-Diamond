@@ -13,6 +13,7 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 const imageUrlToGenerativePart = async (url: string) => {
+    // Použití proxy pro obejití CORS a zajištění, že model dostane data
     const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=1000&output=jpg`;
     try {
         const response = await fetch(proxyUrl);
@@ -35,9 +36,7 @@ export const generateVirtualTryOnImage = async (
 ): Promise<string> => {
   try {
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("API klíč není v aplikaci nastaven.");
-    }
+    if (!apiKey) throw new Error("API klíč nebyl nalezen.");
 
     const ai = new GoogleGenAI({ apiKey });
 
@@ -46,22 +45,19 @@ export const generateVirtualTryOnImage = async (
       imageUrlToGenerativePart(clothingItem.imageUrl)
     ]);
     
-    // Explicitnější prompt pro model 2.5-flash-image
-    const prompt = `IMAGE EDITING TASK: You are a professional virtual fitting room. 
-    1. Take the person from Image 1.
-    2. Take the specific clothing item from Image 2.
-    3. Generate a new image where the person from Image 1 is wearing the clothing from Image 2.
-    Maintain the person's identity, pose, and background exactly. 
-    The clothing should drape naturally over the person's body. 
-    Photorealistic high-quality fashion result.`;
+    const prompt = `FASHION VIRTUAL TRY-ON:
+    - Target: Put the clothing item from Image 2 on the person in Image 1.
+    - Consistency: Keep the person's face, hair, body shape, and background exactly as in Image 1.
+    - Realism: Ensure the garment from Image 2 fits the person's pose and lighting naturally.
+    - Output: High-quality, photorealistic fashion photography style.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image', 
       contents: {
         parts: [
-          { text: "Image 1: Target person" },
+          { text: "Image 1 (Person):" },
           userPart, 
-          { text: "Image 2: Clothing item to apply" },
+          { text: "Image 2 (Clothing):" },
           itemPart, 
           { text: prompt }
         ],
@@ -81,15 +77,15 @@ export const generateVirtualTryOnImage = async (
       }
     }
     
-    throw new Error("AI nevygenerovala žádný obrázek. Zkuste prosím jinou fotku postavy nebo jiný produkt.");
+    throw new Error("Model nevrátil obrázek. Zkuste jinou kombinaci fotek.");
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    if (error.message?.includes('429')) {
-        throw new Error("Limit požadavků vyčerpán. Zkuste to prosím za chvíli.");
-    }
+    console.error("Gemini Error:", error);
     if (error.message?.includes('403')) {
-        throw new Error("Přístup zamítnut. Zkontrolujte, zda je váš API klíč správný a má povolen model Gemini 2.5 Flash Image.");
+        throw new Error("Chyba 403: Ujistěte se, že máte v Google Cloud Console povolený 'Generative Language API' pro váš projekt.");
     }
-    throw new Error(error.message || "Omlouváme se, náhled se nepodařilo vytvořit.");
+    if (error.message?.includes('429')) {
+        throw new Error("Limit bezplatných požadavků byl vyčerpán. Zkuste to za minutu.");
+    }
+    throw new Error(error.message || "Náhled se nepodařilo vytvořit.");
   }
 };
