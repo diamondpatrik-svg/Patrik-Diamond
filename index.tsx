@@ -57,6 +57,63 @@ const Loader = () => (
   </div>
 );
 
+// Samostatná komponenta pro sdílení integrovaná pro stabilitu
+const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
+  const handleShare = async () => {
+    if (!navigator.share) return;
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const imageFile = new File([blob], 'yako-king-look.png', { type: 'image/png' });
+      
+      let appUrl = 'https://yakoking.cz';
+      try {
+        const currentUrl = window.location.href;
+        if (currentUrl && currentUrl.startsWith('http')) {
+          appUrl = currentUrl;
+        }
+      } catch (e) {}
+
+      const shareTitle = 'Yako King | Můj nový look';
+      const shareText = `Mrkni, jak mi sluší kousky od Yako King! Vyzkoušej si je i ty v naší virtuální kabince zde: ${appUrl}`;
+      
+      const shareData: ShareData = {
+        title: shareTitle,
+        text: shareText,
+        url: appUrl,
+        files: [imageFile],
+      };
+
+      if (navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback bez URL v parametru (je v textu)
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          files: [imageFile]
+        });
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') console.error(error);
+    }
+  };
+
+  return (
+    <div className="flex gap-4 w-full max-w-sm mt-6">
+      {navigator.share && (
+        <button onClick={handleShare} className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          Sdílet
+        </button>
+      )}
+      <a href={imageUrl} download="yako-king-fit.png" className="flex-1 py-4 bg-white text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest border border-gray-100 text-center hover:bg-gray-50">Uložit</a>
+    </div>
+  );
+};
+
 const App = () => {
   const [userImg, setUserImg] = useState<string | null>(null);
   const [userFile, setUserFile] = useState<File | null>(null);
@@ -179,11 +236,9 @@ const App = () => {
             </div>
           ) : result ? (
             <div className="w-full h-full flex flex-col items-center p-4">
-              <img src={result} className="max-h-[700px] rounded-[2rem] shadow-2xl mb-8 object-contain bg-white" alt="Výsledek" />
-              <div className="flex gap-4">
-                <a href={result} download="yako-king-fit.png" className="px-10 py-4 bg-indigo-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg">Uložit</a>
-                <button onClick={() => setResult(null)} className="px-10 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest">Zpět</button>
-              </div>
+              <img src={result} className="max-h-[700px] rounded-[2rem] shadow-2xl mb-2 object-contain bg-white" alt="Výsledek" />
+              <ShareButtons imageUrl={result} />
+              <button onClick={() => setResult(null)} className="mt-4 text-[9px] font-black text-indigo-300 uppercase tracking-widest hover:text-indigo-600 transition-colors">Zkusit jinou kombinaci</button>
             </div>
           ) : selected ? (
             <div className="text-center opacity-40 group">
