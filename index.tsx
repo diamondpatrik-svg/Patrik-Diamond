@@ -1,69 +1,71 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
-// --- KONSTRANTY PRODUKTŮ ---
 const CLOTHING_ITEMS = [
   { name: 'Béžová mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/7/w61mxk9y4zjf.webp' },
   { name: 'Černá mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/5/pvxjwz8c4yq2.jpg' },
-  { name: 'Béžová mikina černý střík', imageUrl: 'https://yakoking.cz/images_upd/products/6/jqh37e2wbt6i.jpg' },
+  { name: 'Béžová mikina s kapucí černý střík', imageUrl: 'https://yakoking.cz/images_upd/products/6/jqh37e2wbt6i.jpg' },
   { name: 'Khaki mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/1/1tvwsi0j89pn.jpg' },
   { name: 'Modrá mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/8/o05k6hlq2ret.jpg' },
-  { name: 'Mikinové šaty černé', imageUrl: 'https://yakoking.cz/images_upd/products/9/lyemx76ksg1j.jpg' },
+  { name: 'Mikinové šaty bez kapuce černé', imageUrl: 'https://yakoking.cz/images_upd/products/9/lyemx76ksg1j.jpg' },
   { name: 'Dámská mikina bez kapuce', imageUrl: 'https://yakoking.cz/images_upd/products/3/eyqchobf7knw.jpg' },
-  { name: 'Dámské triko bavlna', imageUrl: 'https://yakoking.cz/images_upd/products/7/kha02lvm6t1p.jpg' },
+  { name: 'Dámské triko 100% bavlna', imageUrl: 'https://yakoking.cz/images_upd/products/7/kha02lvm6t1p.jpg' },
   { name: 'Crop Top Jaro', imageUrl: 'https://yakoking.cz/images_upd/products/3/9l3n27tgeyq4.jpg' },
   { name: 'Crop Top Léto', imageUrl: 'https://yakoking.cz/images_upd/products/9/5m831gfkjary.jpg' },
-  { name: 'Khaki mikina trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/3/ghrcsab8jf9l.jpg' },
-  { name: 'Černá mikina trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/1/vlstbeif261m.jpg' },
-  { name: 'Červená mikina trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/5/yi6rfa417oqv.jpg' },
-  { name: 'Šedá mikina trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/4/4y1ipxet8kcb.jpg' },
-  { name: 'Šafránová mikina trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/2/37t81crbueo4.jpg' },
-  { name: 'Pánské triko bavlna', imageUrl: 'https://yakoking.cz/images_upd/products/3/8eta512klsp4.jpg' },
+  { name: 'Khaki mikina stříkaná trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/3/ghrcsab8jf9l.jpg' },
+  { name: 'Černá mikina stříkaná trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/1/vlstbeif261m.jpg' },
+  { name: 'Červená mikina stříkaná trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/5/yi6rfa417oqv.jpg' },
+  { name: 'Šedá mikina stříkaná trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/4/4y1ipxet8kcb.jpg' },
+  { name: 'Šafránová mikina stříkaná trhaná', imageUrl: 'https://yakoking.cz/images_upd/products/2/37t81crbueo4.jpg' },
+  { name: 'Pánské triko 100% bavlna', imageUrl: 'https://yakoking.cz/images_upd/products/3/8eta512klsp4.jpg' },
 ];
 
-const getSafeUrl = (url) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=400`;
+const getSafeUrl = (url: string) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=800`;
 
-// --- POMOCNÉ FUNKCE ---
-const fileToPart = async (file) => {
-  return new Promise((resolve) => {
+const fileToPart = async (file: File) => {
+  return new Promise<{ inlineData: { data: string; mimeType: string } }>((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        resolve({ inlineData: { data: result.split(',')[1], mimeType: file.type } });
-      }
+      const result = reader.result as string;
+      resolve({ inlineData: { data: result.split(',')[1], mimeType: file.type } });
     };
     reader.readAsDataURL(file);
   });
 };
 
-const urlToPart = async (url) => {
-  const res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=800&output=jpg`);
+const urlToPart = async (url: string) => {
+  const res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=1000&output=jpg`);
   const blob = await res.blob();
-  return new Promise((resolve) => {
+  return new Promise<{ inlineData: { data: string; mimeType: string } }>((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        resolve({ inlineData: { data: result.split(',')[1], mimeType: 'image/jpeg' } });
-      }
+      const result = reader.result as string;
+      resolve({ inlineData: { data: result.split(',')[1], mimeType: 'image/jpeg' } });
     };
     reader.readAsDataURL(blob);
   });
 };
 
-// --- HLAVNÍ KOMPONENTA ---
-const App = () => {
-  const [userImg, setUserImg] = useState(null);
-  const [userFile, setUserFile] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const Loader = () => (
+  <div className="flex flex-col items-center justify-center">
+    <div className="relative w-12 h-12">
+      <div className="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+      <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+    </div>
+  </div>
+);
 
-  const handleUpload = (e) => {
+const App = () => {
+  const [userImg, setUserImg] = useState<string | null>(null);
+  const [userFile, setUserFile] = useState<File | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUserFile(file);
@@ -78,32 +80,43 @@ const App = () => {
     setLoading(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) throw new Error("API klíč nebyl nalezen.");
+
+      const ai = new GoogleGenAI({ apiKey });
       const [uPart, iPart] = await Promise.all([fileToPart(userFile), urlToPart(selected.imageUrl)]);
       
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
-            { text: "Image 1 is a person. Image 2 is a clothing item from Yako King. Output a single photorealistic image of the person from Image 1 wearing the exact clothing item from Image 2. Maintain the person's face, pose, and background." },
-            uPart, iPart
+            { text: "Output a single photorealistic image of the person from Image 1 wearing the clothing from Image 2. Keep the person's face, hair, body shape, and background exactly the same as in Image 1. Fit the clothes perfectly." },
+            uPart, 
+            iPart
           ]
         },
         config: { imageConfig: { aspectRatio: "3:4" } }
       });
 
       const candidate = response.candidates?.[0];
-      const imgPart = candidate?.content?.parts?.find(p => p.inlineData);
-      
-      if (imgPart?.inlineData?.data) {
-        setResult(`data:image/png;base64,${imgPart.inlineData.data}`);
-      } else {
-        throw new Error("Model nevrátil platná obrazová data.");
+      if (!candidate) throw new Error("Žádná odpověď od AI.");
+
+      let base64Data = "";
+      for (const part of candidate.content.parts) {
+        if (part.inlineData) {
+          base64Data = part.inlineData.data;
+          break;
+        }
       }
-    } catch (err) {
-      // DŮLEŽITÉ: Převod chyby na string pro zamezení Error #31
+      
+      if (base64Data) {
+        setResult(`data:image/png;base64,${base64Data}`);
+      } else {
+        throw new Error("Model nevrátil data obrázku. Zkuste jinou fotku.");
+      }
+    } catch (err: any) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Nepodařilo se vytvořit náhled. Zkuste jinou fotku.");
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -118,8 +131,7 @@ const App = () => {
       </header>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* OVLÁDACÍ PANEL */}
-        <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] shadow-2xl space-y-8 animate-fade-in" style={{animationDelay: '0.1s'}}>
+        <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] shadow-2xl space-y-8 animate-fade-in">
           <section>
             <h3 className="text-[10px] font-black uppercase text-indigo-900/40 mb-4 tracking-widest">01. Tvoje postava</h3>
             <div className="relative group h-24 border-2 border-dashed border-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden transition-all hover:border-indigo-400 hover:bg-indigo-50/30">
@@ -127,12 +139,10 @@ const App = () => {
               {userImg ? (
                 <div className="flex items-center gap-4 px-4">
                   <img src={userImg} className="w-12 h-12 object-cover rounded-xl shadow-lg ring-2 ring-white" alt="User" />
-                  <span className="text-indigo-600 font-bold text-[10px] uppercase tracking-widest">Fotka připravena</span>
+                  <span className="text-indigo-600 font-bold text-[10px] uppercase tracking-widest">Fotka nahrána</span>
                 </div>
               ) : (
-                <div className="text-center">
-                  <p className="text-indigo-400 font-black text-[10px] uppercase tracking-widest">Nahraj svou fotku</p>
-                </div>
+                <p className="text-indigo-400 font-black text-[10px] uppercase tracking-widest">Nahraj svou fotku</p>
               )}
             </div>
           </section>
@@ -161,19 +171,18 @@ const App = () => {
           </button>
         </div>
 
-        {/* VÝSLEDKOVÝ PANEL */}
-        <div className="lg:col-span-8 glass rounded-[3rem] p-4 flex flex-col items-center justify-center min-h-[600px] shadow-2xl relative overflow-hidden animate-fade-in" style={{animationDelay: '0.2s'}}>
+        <div className="lg:col-span-8 glass rounded-[3rem] p-4 flex flex-col items-center justify-center min-h-[600px] shadow-2xl relative overflow-hidden animate-fade-in">
           {loading ? (
             <div className="text-center p-12">
-              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent animate-spin rounded-full mx-auto mb-6"></div>
-              <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.5em] animate-pulse">Designuji tvůj outfit...</p>
+              <Loader />
+              <p className="mt-6 text-indigo-600 font-black text-[11px] uppercase tracking-[0.5em] animate-pulse">Designuji tvůj outfit...</p>
             </div>
           ) : result ? (
             <div className="w-full h-full flex flex-col items-center p-4">
               <img src={result} className="max-h-[700px] rounded-[2rem] shadow-2xl mb-8 object-contain bg-white" alt="Výsledek" />
               <div className="flex gap-4">
-                <a href={result} download="yako-king-fit.png" className="px-10 py-4 bg-indigo-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-colors">Uložit náhled</a>
-                <button onClick={() => setResult(null)} className="px-10 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest hover:bg-gray-200">Zkusit jiný</button>
+                <a href={result} download="yako-king-fit.png" className="px-10 py-4 bg-indigo-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg">Uložit</a>
+                <button onClick={() => setResult(null)} className="px-10 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest">Zpět</button>
               </div>
             </div>
           ) : selected ? (
@@ -183,9 +192,6 @@ const App = () => {
             </div>
           ) : (
             <div className="text-center opacity-10 select-none">
-                <div className="w-32 h-32 border-2 border-indigo-200 rounded-full flex items-center justify-center mx-auto mb-8">
-                    <svg className="w-12 h-12 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M12 4v16m8-8H4"></path></svg>
-                </div>
               <p className="text-indigo-900 font-black uppercase tracking-[0.8em] text-[12px] italic">Studio Yako King</p>
             </div>
           )}
@@ -197,17 +203,9 @@ const App = () => {
           )}
         </div>
       </div>
-
-      <footer className="mt-20 opacity-20 text-center">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em]">&copy; {new Date().getFullYear()} Yako King Handmade Studio</p>
-      </footer>
     </div>
   );
 };
 
-// Start aplikace
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<App />);
-}
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+root.render(<App />);
