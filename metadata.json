@@ -1,7 +1,5 @@
 {
-  "name": "Jak ti bude slušel YK Handmade?",
-  "description": "A virtual try-on application that allows users to upload a photo of themselves and see how they would look in different clothing items from YK Handmade using generative AI.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "name": "Yako King Virtuální kabinka",
+  "description": "Vyzkoušejte si ručně šité kousky Yako King na vlastní fotce díky AI.",
+  "requestFramePermissions": []
 }

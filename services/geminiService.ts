@@ -35,10 +35,8 @@ export const generateVirtualTryOnImage = async (
   clothingItem: ClothingItem
 ): Promise<string> => {
   try {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API klíč nebyl nalezen.");
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Fix: Initialize GoogleGenAI directly with process.env.API_KEY as per the coding guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const [userPart, itemPart] = await Promise.all([
       fileToGenerativePart(userImageFile),
