@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Yako King | Virtuální kabinka</title>
     
-    <!-- Polyfill pro process.env a zajištění existence globálního objektu process -->
+    <!-- Polyfill pro process.env pro stabilitu SDK -->
     <script>
       window.process = window.process || { env: {} };
     </script>
@@ -24,6 +24,17 @@
         .clothing-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Prevence bílé obrazovky - fallback text pokud JS selže */
+        #root:empty::after {
+            content: 'Načítám Virtuální kabinku... Pokud se nic neděje, zkontrolujte připojení.';
+            display: block;
+            text-align: center;
+            padding-top: 50px;
+            color: #6366f1;
+            font-size: 14px;
+            font-weight: bold;
+        }
     </style>
 
     <script type="importmap">
@@ -41,6 +52,7 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" data-type="module" src="./index.tsx"></script>
+    <!-- Na GitHub Pages je jistější používat relativní cestu bez tečky nebo s plnou cestou -->
+    <script type="text/babel" data-type="module" src="index.tsx"></script>
 </body>
 </html>

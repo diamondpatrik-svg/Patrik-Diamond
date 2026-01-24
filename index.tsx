@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
+// Konfigurace produktů
 const CLOTHING_ITEMS = [
   { name: 'Béžová mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/7/w61mxk9y4zjf.webp' },
   { name: 'Černá mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/5/pvxjwz8c4yq2.jpg' },
@@ -48,6 +49,8 @@ const urlToPart = async (url: string) => {
   });
 };
 
+// --- KOMPONENTY ---
+
 const Loader = () => (
   <div className="flex flex-col items-center justify-center">
     <div className="relative w-12 h-12">
@@ -57,7 +60,6 @@ const Loader = () => (
   </div>
 );
 
-// Samostatná komponenta pro sdílení integrovaná pro stabilitu
 const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
   const handleShare = async () => {
     if (!navigator.share) return;
@@ -69,6 +71,7 @@ const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
       let appUrl = 'https://yakoking.cz';
       try {
         const currentUrl = window.location.href;
+        // Ověření validity URL pro navigator.share
         if (currentUrl && currentUrl.startsWith('http')) {
           appUrl = currentUrl;
         }
@@ -77,7 +80,7 @@ const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
       const shareTitle = 'Yako King | Můj nový look';
       const shareText = `Mrkni, jak mi sluší kousky od Yako King! Vyzkoušej si je i ty v naší virtuální kabince zde: ${appUrl}`;
       
-      const shareData: ShareData = {
+      const shareData: any = {
         title: shareTitle,
         text: shareText,
         url: appUrl,
@@ -87,32 +90,40 @@ const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
       if (navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
       } else {
-        // Fallback bez URL v parametru (je v textu)
         await navigator.share({
           title: shareTitle,
           text: shareText,
-          files: [imageFile]
+          url: appUrl
         });
       }
     } catch (error) {
-      if ((error as Error).name !== 'AbortError') console.error(error);
+      if ((error as Error).name !== 'AbortError') console.error('Share error:', error);
     }
   };
 
   return (
-    <div className="flex gap-4 w-full max-w-sm mt-6">
-      {navigator.share && (
-        <button onClick={handleShare} className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-          Sdílet
-        </button>
-      )}
-      <a href={imageUrl} download="yako-king-fit.png" className="flex-1 py-4 bg-white text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest border border-gray-100 text-center hover:bg-gray-50">Uložit</a>
+    <div className="flex flex-col items-center gap-4 w-full max-w-sm mt-6">
+      <div className="flex gap-3 w-full">
+        {navigator.share && (
+          <button onClick={handleShare} className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Sdílet s textem
+          </button>
+        )}
+        <a href={imageUrl} download="yako-king-fit.png" className="flex-1 py-4 bg-white text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest border border-gray-100 text-center hover:bg-gray-50 flex items-center justify-center">
+          Uložit
+        </a>
+      </div>
+      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
+        Sdílej svůj look s odkazem na Yako King
+      </p>
     </div>
   );
 };
+
+// --- HLAVNÍ APLIKACE ---
 
 const App = () => {
   const [userImg, setUserImg] = useState<string | null>(null);
@@ -138,7 +149,7 @@ const App = () => {
     setError(null);
     try {
       const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("API klíč nebyl nalezen.");
+      if (!apiKey) throw new Error("API klíč nebyl nalezen. Zkontrolujte nastavení prostředí.");
 
       const ai = new GoogleGenAI({ apiKey });
       const [uPart, iPart] = await Promise.all([fileToPart(userFile), urlToPart(selected.imageUrl)]);
@@ -147,7 +158,7 @@ const App = () => {
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
-            { text: "Output a single photorealistic image of the person from Image 1 wearing the clothing from Image 2. Keep the person's face, hair, body shape, and background exactly the same as in Image 1. Fit the clothes perfectly." },
+            { text: "Output a single photorealistic image of the person from Image 1 wearing the clothing from Image 2. Keep the person's face, hair, body shape, and background exactly the same as in Image 1. Fit the clothes perfectly to their pose." },
             uPart, 
             iPart
           ]
@@ -156,7 +167,7 @@ const App = () => {
       });
 
       const candidate = response.candidates?.[0];
-      if (!candidate) throw new Error("Žádná odpověď od AI.");
+      if (!candidate) throw new Error("AI neposkytla žádnou odpověď.");
 
       let base64Data = "";
       for (const part of candidate.content.parts) {
@@ -169,11 +180,11 @@ const App = () => {
       if (base64Data) {
         setResult(`data:image/png;base64,${base64Data}`);
       } else {
-        throw new Error("Model nevrátil data obrázku. Zkuste jinou fotku.");
+        throw new Error("Nepodařilo se vygenerovat náhled. Zkuste prosím jinou fotografii.");
       }
     } catch (err: any) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : String(err));
+      console.error('Generation Error:', err);
+      setError(err instanceof Error ? err.message : "Došlo k neznámé chybě při generování.");
     } finally {
       setLoading(false);
     }
@@ -188,6 +199,7 @@ const App = () => {
       </header>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Kontrolní panel */}
         <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] shadow-2xl space-y-8 animate-fade-in">
           <section>
             <h3 className="text-[10px] font-black uppercase text-indigo-900/40 mb-4 tracking-widest">01. Tvoje postava</h3>
@@ -228,36 +240,49 @@ const App = () => {
           </button>
         </div>
 
+        {/* Zobrazovací panel */}
         <div className="lg:col-span-8 glass rounded-[3rem] p-4 flex flex-col items-center justify-center min-h-[600px] shadow-2xl relative overflow-hidden animate-fade-in">
           {loading ? (
             <div className="text-center p-12">
               <Loader />
               <p className="mt-6 text-indigo-600 font-black text-[11px] uppercase tracking-[0.5em] animate-pulse">Designuji tvůj outfit...</p>
+              <p className="mt-2 text-gray-400 text-[9px] uppercase tracking-widest">Může to trvat až 15 sekund</p>
             </div>
           ) : result ? (
             <div className="w-full h-full flex flex-col items-center p-4">
               <img src={result} className="max-h-[700px] rounded-[2rem] shadow-2xl mb-2 object-contain bg-white" alt="Výsledek" />
               <ShareButtons imageUrl={result} />
-              <button onClick={() => setResult(null)} className="mt-4 text-[9px] font-black text-indigo-300 uppercase tracking-widest hover:text-indigo-600 transition-colors">Zkusit jinou kombinaci</button>
+              <button onClick={() => setResult(null)} className="mt-6 text-[9px] font-black text-indigo-300 uppercase tracking-widest hover:text-indigo-600 transition-colors">Zkusit jinou kombinaci</button>
             </div>
           ) : selected ? (
-            <div className="text-center opacity-40 group">
-              <img src={getSafeUrl(selected.imageUrl)} className="max-h-[500px] rounded-[2.5rem] mb-6 grayscale group-hover:grayscale-0 transition-all duration-700" alt="Produkt" />
+            <div className="text-center opacity-40 group animate-fade-in">
+              <img src={getSafeUrl(selected.imageUrl)} className="max-h-[500px] rounded-[2.5rem] mb-6 grayscale group-hover:grayscale-0 transition-all duration-700 shadow-xl bg-white" alt="Produkt" />
+              <h4 className="text-gray-900 font-black uppercase text-[14px] tracking-widest mb-2">{selected.name}</h4>
               <p className="text-indigo-400 font-black text-[10px] uppercase tracking-[0.3em]">Klikni na "Vyzkoušet na sobě"</p>
             </div>
           ) : (
-            <div className="text-center opacity-10 select-none">
+            <div className="text-center opacity-10 select-none p-12">
+              <div className="w-24 h-24 mx-auto border-2 border-indigo-200 rounded-full flex items-center justify-center mb-8">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4v16m8-8H4" />
+                 </svg>
+              </div>
               <p className="text-indigo-900 font-black uppercase tracking-[0.8em] text-[12px] italic">Studio Yako King</p>
             </div>
           )}
           
           {error && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/95 px-8 py-3 rounded-full shadow-2xl border border-red-100 animate-fade-in">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/95 px-8 py-3 rounded-full shadow-2xl border border-red-100 animate-fade-in flex items-center gap-3">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
                 <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest">{error}</p>
             </div>
           )}
         </div>
       </div>
+      
+      <footer className="mt-16 py-8 opacity-20 text-center">
+        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-500">&copy; {new Date().getFullYear()} Yako King Handmade &bull; Designed by AI</p>
+      </footer>
     </div>
   );
 };
