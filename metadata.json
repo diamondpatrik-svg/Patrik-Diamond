@@ -1,5 +1,7 @@
 {
-  "name": "Yako King Virtuální kabinka",
-  "description": "Vyzkoušejte si ručně šité kousky Yako King na vlastní fotce díky AI.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "name": "",
+  "description": ""
 }

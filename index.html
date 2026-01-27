@@ -6,22 +6,24 @@
     <title>Yako King | Virtuální kabinka</title>
     
     <script>
-      // Globální zachycení chyb pro ladění na produkci
+      // Shim pro process.env, aby aplikace neselhala, pokud není definován
+      window.process = window.process || { env: {} };
+      
+      // Globální zachycení chyb pro lepší diagnostiku
       window.onerror = function(msg, url, lineNo, columnNo, error) {
         const root = document.getElementById('root');
         if (root && root.innerHTML.trim() === "") {
-          root.innerHTML = `<div style="padding: 40px 20px; color: #ef4444; font-family: sans-serif; text-align: center; background: white; min-height: 100vh;">
-            <h2 style="margin-bottom: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">Chyba při startu aplikace</h2>
-            <p style="font-size: 14px; color: #666; max-width: 400px; margin: 0 auto 24px;">Došlo k technické chybě při inicializaci kabinky. Zkuste prosím stránku obnovit.</p>
-            <button onclick="location.reload()" style="background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;">Obnovit stránku</button>
-            <pre style="margin-top: 40px; font-size: 10px; color: #999; text-align: left; background: #f8f8f8; padding: 10px; overflow: auto; max-width: 90vw; margin-left: auto; margin-right: auto;">${msg}\nLine: ${lineNo}</pre>
+          root.innerHTML = `<div style="padding: 40px 20px; color: #ef4444; font-family: sans-serif; text-align: center; background: white; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <h2 style="margin-bottom: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">Chyba při startu kabinky</h2>
+            <p style="font-size: 14px; color: #666; max-width: 400px; margin: 0 auto 24px;">Došlo k technické chybě při načítání komponent. To se obvykle stává při konfliktu verzí knihoven nebo chybějícím klíči.</p>
+            <button onclick="location.reload()" style="background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer;">Zkusit znovu</button>
+            <pre style="margin-top: 40px; font-size: 10px; color: #999; text-align: left; background: #f8f8f8; padding: 15px; border-radius: 8px; overflow: auto; max-width: 90vw;">${msg}\nLine: ${lineNo}\nURL: ${url}</pre>
           </div>`;
         }
         return false;
       };
     </script>
 
-    <!-- Tailwind a Babel pro běh v prohlížeči -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
@@ -37,16 +39,16 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         
         #root:empty::after {
-            content: 'Načítám kabinku Yako King...';
+            content: 'Načítám Yako King Studio...';
             display: block;
             text-align: center;
             padding: 100px 20px;
             color: #4f46e5;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.2em;
-            opacity: 0.6;
+            letter-spacing: 0.3em;
+            opacity: 0.5;
         }
     </style>
 
@@ -56,15 +58,15 @@
         "react": "https://esm.sh/react@18.2.0",
         "react-dom": "https://esm.sh/react-dom@18.2.0",
         "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "@google/genai": "https://esm.sh/@google/genai",
         "react/": "https://esm.sh/react@18.2.0/",
-        "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-        "@google/genai": "https://esm.sh/@google/genai"
+        "react-dom/": "https://esm.sh/react-dom@18.2.0/"
       }
     }
     </script>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" data-type="module" src="index.tsx"></script>
+    <script type="text/babel" data-type="module" src="./index.tsx"></script>
 </body>
 </html>
