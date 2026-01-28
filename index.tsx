@@ -63,32 +63,71 @@ const Loader = () => (
 );
 
 const ShareButtons = ({ imageUrl }: { imageUrl: string }) => {
+  const [status, setStatus] = useState<'idle' | 'copied' | 'sharing'>('idle');
+
   const handleShare = async () => {
-    if (!navigator.share) return;
+    if (status !== 'idle') return;
+
+    if (!navigator.share) {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setStatus('copied');
+        setTimeout(() => setStatus('idle'), 2000);
+      } catch (err) {}
+      return;
+    }
+
     try {
-      const res = await fetch(imageUrl);
-      const blob = await res.blob();
-      const imageFile = new File([blob], 'yako-king-look.png', { type: 'image/png' });
-      const shareData = {
+      setStatus('sharing');
+      const shareData: any = {
         title: 'Můj nový Yako King look!',
         text: 'Zkouším oblečení ve virtuální kabince Yako King.',
-        files: [imageFile],
+        url: window.location.href,
       };
-      if (navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.share({ title: shareData.title, text: shareData.text, url: window.location.href });
+
+      try {
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const imageFile = new File([blob], 'yako-king-look.png', { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+          shareData.files = [imageFile];
+        }
+      } catch (e) {
+        console.warn("Could not prepare file for sharing, sharing link only.");
       }
-    } catch (e) { console.error("Sharing failed", e); }
+
+      await navigator.share(shareData);
+    } catch (e: any) {
+      // AbortError is thrown when user cancels the share sheet, which is normal behavior
+      if (e.name !== 'AbortError') {
+        console.error("Sharing failed", e);
+        // Fallback to copying link
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          setStatus('copied');
+          setTimeout(() => setStatus('idle'), 2000);
+        } catch (err) {}
+      }
+    } finally {
+      setStatus('idle');
+    }
   };
 
   return (
     <div className="flex flex-col items-center gap-4 w-full mt-6">
       <div className="flex gap-3 w-full max-w-md">
-        <button onClick={handleShare} className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-          Sdílet look
+        <button 
+          onClick={handleShare} 
+          className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+        >
+          {status === 'copied' ? 'Odkaz zkopírován' : 'Sdílet look'}
         </button>
-        <a href={imageUrl} download="yako-king-fit.png" className="flex-1 py-4 bg-white text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest border border-gray-100 text-center hover:bg-gray-50 flex items-center justify-center">
+        <a 
+          href={imageUrl} 
+          download="yako-king-fit.png" 
+          className="flex-1 py-4 bg-white text-gray-500 font-bold rounded-2xl text-[10px] uppercase tracking-widest border border-gray-100 text-center hover:bg-gray-50 flex items-center justify-center"
+        >
           Uložit
         </a>
       </div>
