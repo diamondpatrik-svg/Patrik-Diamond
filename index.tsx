@@ -43,7 +43,7 @@ const urlToPart = async (url: string) => {
   try {
     const safeUrl = getSafeUrl(url, 1000);
     const res = await fetch(safeUrl);
-    if (!res.ok) throw new Error("Produkt se nepodařilo načíst.");
+    if (!res.ok) throw new Error("Produkt se nepodařilo stáhnout.");
     const blob = await res.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -68,7 +68,7 @@ const Loader = () => (
     </div>
     <div className="mt-10 text-center">
       <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Navrhuji tvůj styl...</p>
-      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 3 Pro AI Generátor</p>
+      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 3 Pro AI v akci</p>
     </div>
   </div>
 );
@@ -82,11 +82,23 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(true);
 
+  // Bezpečné získání API klíče bez pádů ReferenceError
+  const getApiKey = () => {
+    try {
+      return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   useEffect(() => {
     const checkKey = async () => {
       if (window.aistudio?.hasSelectedApiKey) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
+      } else {
+        // Pokud není key dialog k dispozici, zkontrolujeme process.env
+        setHasKey(!!getApiKey());
       }
     };
     checkKey();
@@ -110,35 +122,16 @@ const App = () => {
     }
   };
 
-  const handleShare = async () => {
-    if (!result) return;
-    try {
-      const response = await fetch(result);
-      const blob = await response.blob();
-      const file = new File([blob], 'yakoking-fit.png', { type: 'image/png' });
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Můj Yako King outfit',
-          text: `Checkni, jak mi sekne tenhle kousek od Yako King! Víc na ${YAKO_URL}`,
-          url: YAKO_URL,
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const generate = async () => {
     if (!userFile || !selected || loading) return;
 
     setLoading(true);
     setError(null);
     try {
-      const apiKey = process.env.API_KEY;
+      const apiKey = getApiKey();
       if (!apiKey) {
         setHasKey(false);
-        throw new Error("API klíč není k dispozici.");
+        throw new Error("API klíč nebyl nalezen. Prosím vyberte jej v nastavení.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -151,7 +144,7 @@ const App = () => {
         model: 'gemini-3-pro-image-preview',
         contents: {
           parts: [
-            { text: "VIRTUAL TRY-ON: Take the EXACT clothing item from Image 2 and superimpose it onto the person in Image 1. Keep the face, hairstyle, and background of Image 1 exactly the same. The result should be a high-resolution professional studio fashion photo." },
+            { text: "VIRTUAL TRY-ON: Take the EXACT clothing item from Image 2 and superimpose it onto the person in Image 1. Maintain the person's face, identity and background perfectly. The final image should look like a professional studio fashion photograph." },
             uPart as any, 
             iPart as any
           ]
@@ -168,17 +161,17 @@ const App = () => {
            document.getElementById('result-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       } else {
-        throw new Error("AI nepředala žádný obrázek. Zkuste prosím jinou fotografii postavy.");
+        throw new Error("AI nevrátila obrázek. Zkuste prosím jinou fotografii.");
       }
     } catch (err: any) {
       console.error("Generation error:", err);
-      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API_KEY")) {
+      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key")) {
         setHasKey(false);
-        setError("Váš API klíč je neplatný nebo vypršel. Klikněte na 'Nastavit klíč'.");
+        setError("Váš API klíč je neplatný. Klikněte na 'Nastavit klíč'.");
       } else if (err.message?.includes("Safety")) {
-        setError("Obrázek byl zamítnut bezpečnostním filtrem AI. Zkuste jinou fotku.");
+        setError("AI vyhodnotila obrázek jako nevhodný. Zkuste prosím jinou fotku.");
       } else {
-        setError(err.message || "Technická chyba při komunikaci s AI. Zkuste to za okamžik.");
+        setError(err.message || "Došlo k technické chybě. Zkuste to za chvíli.");
       }
     } finally {
       setLoading(false);
@@ -192,7 +185,7 @@ const App = () => {
           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King Studio 3.0</p>
         </div>
         <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální kabinka</h1>
-        <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">Špičková AI technologie pro váš dokonalý výběr.</p>
+        <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">Vyzkoušejte si naše kousky přímo na své fotce.</p>
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8">
@@ -200,7 +193,7 @@ const App = () => {
           <section>
             <div className="flex justify-between items-end mb-5">
                <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">01. Tvůj základ</h3>
-               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Reset</button>}
+               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">Reset</button>}
             </div>
             <div className={`relative border-2 border-dashed rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-500 min-h-[160px] ${userImg ? 'border-indigo-200 bg-white' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer'}`}>
               {!userImg && <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />}
@@ -237,8 +230,8 @@ const App = () => {
             {!hasKey ? (
                <div className="flex flex-col items-center p-6 border-2 border-indigo-100 rounded-3xl bg-indigo-50/20 animate-fade-in">
                   <p className="text-[10px] font-bold text-indigo-900/60 uppercase tracking-widest mb-4 text-center leading-relaxed">
-                    Pro spuštění AI na tomto webu je potřeba vybrat klíč.<br/>
-                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 underline">Informace o placeném Gemini API</a>
+                    Pro spuštění AI na tomto webu musíte vybrat klíč.<br/>
+                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 underline">Více info o Gemini API</a>
                   </p>
                   <button type="button" onClick={handleSelectKey} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-lg hover:bg-indigo-700 transition-colors">
                     Nastavit klíč k AI
@@ -249,7 +242,7 @@ const App = () => {
                 type="button"
                 onClick={generate} 
                 disabled={loading || !userFile || !selected} 
-                className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center pointer-events-auto"
+                className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
               >
                 {loading ? 'Generuji...' : 'Vyzkoušet na sobě'}
               </button>
@@ -275,9 +268,6 @@ const App = () => {
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
                 <div className="absolute top-4 right-4 flex gap-3">
-                   <button type="button" onClick={handleShare} className="w-12 h-12 bg-white/95 backdrop-blur rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-indigo-600">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                   </button>
                    <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
