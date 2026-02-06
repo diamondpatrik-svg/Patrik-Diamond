@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
@@ -22,6 +22,7 @@ const CLOTHING_ITEMS = [
   { id: 16, name: 'Pánské triko bavlna', imageUrl: 'https://yakoking.cz/images_upd/products/3/8eta512klsp4.jpg' },
 ];
 
+const YAKO_URL = "https://www.yakoking.cz";
 const getSafeUrl = (url: string, width = 600) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&fit=contain&output=webp`;
 
 // --- POMOCNÉ FUNKCE ---
@@ -30,10 +31,10 @@ const fileToPart = async (file: File) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      if (!result) return reject("Nepodařilo se přečíst soubor.");
+      if (!result) return reject("Chyba čtení souboru.");
       resolve({ inlineData: { data: result.split(',')[1], mimeType: file.type } });
     };
-    reader.onerror = () => reject("Chyba při čtení souboru.");
+    reader.onerror = () => reject("Chyba čtení souboru.");
     reader.readAsDataURL(file);
   });
 };
@@ -48,24 +49,24 @@ const urlToPart = async (url: string) => {
         const result = reader.result as string;
         resolve({ inlineData: { data: result.split(',')[1], mimeType: 'image/jpeg' } });
       };
-      reader.onerror = () => reject("Chyba při zpracování obrázku produktu.");
+      reader.onerror = () => reject("Chyba zpracování produktu.");
       reader.readAsDataURL(blob);
     });
   } catch (err) {
-    throw new Error("Nepodařilo se stáhnout obrázek produktu.");
+    throw new Error("Chyba stažení produktu.");
   }
 };
 
 // --- KOMPONENTY ---
 const Loader = () => (
-  <div className="flex flex-col items-center justify-center py-16 animate-fade-in">
-    <div className="relative w-24 h-24">
+  <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+    <div className="relative w-20 h-20">
       <div className="absolute inset-0 rounded-full border-[3px] border-indigo-100 opacity-30"></div>
       <div className="absolute inset-0 rounded-full border-[3px] border-indigo-600 border-t-transparent animate-spin"></div>
     </div>
     <div className="mt-10 text-center">
-      <p className="text-indigo-600 font-black text-[12px] uppercase tracking-[0.5em] animate-pulse">Upravuji tvůj fit...</p>
-      <p className="mt-3 text-slate-400 text-[9px] uppercase tracking-widest font-medium">Naše AI krejčí právě pracují (cca 15-20s)</p>
+      <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Šijeme ti outfit na míru...</p>
+      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest">Zabere to cca 15-20 sekund</p>
     </div>
   </div>
 );
@@ -103,23 +104,26 @@ const App = () => {
         await navigator.share({
           files: [file],
           title: 'Můj Yako King outfit',
-          text: 'Koukni, jak mi sekne tenhle outfit od Yako King! Víc na www.yakoking.cz',
-          url: 'https://www.yakoking.cz',
+          text: `Checkni, jak mi sekne tenhle kousek od Yako King! Víc na ${YAKO_URL}`,
+          url: YAKO_URL,
         });
       } else {
-        alert("Sdílení souborů není tvým prohlížečem přímo podporováno. Obrázek si můžeš stáhnout tlačítkem vedle nebo navštívit www.yakoking.cz");
+        alert(`Odkaz: ${YAKO_URL} - Obrázek si uložte podržením prstu.`);
       }
     } catch (err) {
       console.error("Chyba při sdílení:", err);
     }
   };
 
-  const generate = async () => {
-    if (!userFile || !selected) return;
+  const generate = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!userFile || !selected || loading) return;
     
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      setError("API klíč není nastaven. Prosím zkontrolujte konfiguraci prostředí.");
+      setError("Chybí konfigurace API klíče.");
       return;
     }
 
@@ -151,61 +155,61 @@ const App = () => {
         setResult(`data:image/png;base64,${imagePart.inlineData.data}`);
         setTimeout(() => {
            const resEl = document.getElementById('result-section');
-           if (resEl) resEl.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
+           if (resEl) resEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
       } else {
-        throw new Error("AI se nepodařilo vytvořit náhled. Zkuste prosím jinou nebo jasnější fotku postavy.");
+        throw new Error("AI se nepodařilo vygenerovat náhled. Zkuste prosím jinou fotku postavy.");
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Technický problém. Zkuste to prosím znovu za chvíli.");
+      setError(err.message || "Technický výpadek. Zkuste to prosím znovu.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-[#f8faff]">
-      <header className="mb-10 text-center animate-fade-in w-full max-w-4xl">
-        <div className="inline-block bg-white/80 border border-indigo-100 px-5 py-1.5 rounded-full mb-5 shadow-sm">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em]">Yako King Handmade</p>
+    <div className="min-h-screen p-4 md:p-10 flex flex-col items-center bg-[#f8faff] text-slate-900">
+      <header className="mb-12 text-center animate-fade-in w-full max-w-2xl">
+        <div className="inline-block bg-white border border-indigo-100 px-6 py-2 rounded-full mb-6 shadow-sm">
+          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King Studio</p>
         </div>
-        <h1 className="text-4xl md:text-7xl font-black text-indigo-950 italic tracking-tighter leading-tight mb-4">Virtuální kabinka</h1>
-        <p className="text-slate-500 font-medium text-sm md:text-base max-w-xl mx-auto leading-relaxed">Vyber si kousek z naší dílny, nahraj fotku a podívej se, jak ti sekne dřív, než si ho objednáš.</p>
+        <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální kabinka</h1>
+        <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">Vyber si kousek, nahraj fotku a uvidíš výsledek.</p>
       </header>
 
-      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Ovládací panel nahoře */}
-        <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] space-y-8 animate-fade-in order-1">
+      <main className="w-full max-w-2xl flex flex-col gap-8">
+        {/* PANEL OVLÁDÁNÍ */}
+        <div className="glass p-6 md:p-10 rounded-[2.5rem] space-y-10 animate-fade-in relative z-10">
           <section>
-            <div className="flex justify-between items-end mb-4">
-               <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.2em]">01. Tvoje fotka</h3>
-               {userImg && <button onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase hover:text-red-500 transition-colors">Reset</button>}
+            <div className="flex justify-between items-end mb-5">
+               <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">01. Tvůj základ</h3>
+               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">Reset</button>}
             </div>
-            <div className={`relative group border-2 border-dashed rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-500 min-h-[140px] ${userImg ? 'border-indigo-200 bg-indigo-50/20' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40'}`}>
-              {!userImg && <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />}
+            <div className={`relative border-2 border-dashed rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-500 min-h-[160px] ${userImg ? 'border-indigo-200 bg-white' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer'}`}>
+              {!userImg && <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />}
               {userImg ? (
-                <img src={userImg} className="w-full h-full object-cover aspect-video lg:aspect-auto" alt="User" />
+                <img src={userImg} className="w-full max-h-[300px] object-contain" alt="User" />
               ) : (
-                <div className="text-center p-6">
-                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                <div className="text-center p-6 pointer-events-none">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   </div>
-                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Nahrát postavu</p>
+                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Nahraj svou fotku</p>
                 </div>
               )}
             </div>
           </section>
 
           <section>
-            <h3 className="text-[11px] font-black uppercase text-indigo-900/40 mb-4 tracking-[0.2em]">02. Výběr produktu</h3>
-            <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-2 clothing-scroll">
+            <h3 className="text-[11px] font-black uppercase text-indigo-900/40 mb-5 tracking-[0.3em]">02. Co si zkusíš?</h3>
+            <div className="grid grid-cols-4 md:grid-cols-6 gap-3 max-h-[250px] overflow-y-auto pr-2 clothing-scroll">
               {CLOTHING_ITEMS.map(item => (
                 <button 
                   key={item.id} 
+                  type="button"
                   onClick={() => { setSelected(item); setResult(null); setError(null); }}
-                  className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-300 relative ${selected?.id === item.id ? 'border-indigo-600 scale-[0.98] ring-4 ring-indigo-50' : 'border-transparent bg-white shadow-sm grayscale-[0.3] hover:grayscale-0 hover:scale-[1.02]'}`}
-                  title={item.name}
+                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all duration-300 relative ${selected?.id === item.id ? 'border-indigo-600 scale-[0.95] ring-4 ring-indigo-50' : 'border-transparent bg-white shadow-sm hover:scale-[1.05]'}`}
                 >
                   <img src={getSafeUrl(item.imageUrl, 200)} className="w-full h-full object-cover" alt={item.name} />
                 </button>
@@ -213,66 +217,72 @@ const App = () => {
             </div>
           </section>
 
-          <button 
-            onClick={generate} 
-            disabled={loading || !userFile || !selected} 
-            className="w-full py-5 btn-grad text-white font-black rounded-[1.5rem] shadow-lg disabled:opacity-20 disabled:cursor-not-allowed uppercase tracking-[0.4em] text-[12px]"
-          >
-            {loading ? 'Pracuji...' : 'Vyzkoušet na sobě'}
-          </button>
+          <div className="pt-4">
+            <button 
+              type="button"
+              onClick={generate} 
+              disabled={loading || !userFile || !selected} 
+              className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] pointer-events-auto"
+            >
+              {loading ? 'Generuji...' : 'Vyzkoušet na sobě'}
+            </button>
+          </div>
           
           {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl animate-fade-in">
-              <p className="text-red-500 font-bold text-[10px] uppercase tracking-wider text-center leading-relaxed">{error}</p>
+            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl animate-fade-in text-center">
+              <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest">{error}</p>
             </div>
           )}
         </div>
 
-        {/* Hlavní náhled dole/vpravo */}
-        <div id="result-section" className="lg:col-span-8 glass rounded-[3rem] p-4 md:p-8 flex flex-col items-center justify-center min-h-[400px] lg:min-h-[800px] relative overflow-hidden animate-fade-in order-2">
+        {/* VÝSLEDEK DOLE */}
+        <div id="result-section" className="w-full">
           {loading ? (
-            <Loader />
+            <div className="glass rounded-[3rem] min-h-[400px] flex items-center justify-center">
+              <Loader />
+            </div>
           ) : result ? (
-            <div className="w-full h-full flex flex-col items-center animate-fade-in">
-              <div className="relative group max-w-full">
-                <img src={result} className="max-h-[700px] rounded-[2.5rem] shadow-2xl object-contain bg-white border border-indigo-50" alt="Výsledek" />
+            <div className="glass rounded-[3rem] p-6 md:p-10 flex flex-col items-center animate-fade-in space-y-8">
+              <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">Tvůj nový fit</h3>
+              <div className="relative group w-full max-w-md">
+                <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
                 <div className="absolute top-4 right-4 flex gap-3">
-                   {/* Share Button */}
-                   <button onClick={handleShare} className="w-12 h-12 bg-white/95 backdrop-blur rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-indigo-600" title="Sdílet outfit">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                   <button type="button" onClick={handleShare} className="w-12 h-12 bg-white/95 backdrop-blur rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-indigo-600" title="Sdílet">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                    </button>
-                   {/* Download Button */}
-                   <a href={result} download="yakoking-style.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white" title="Stáhnout">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                   <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
                 </div>
               </div>
-              <button onClick={() => setResult(null)} className="mt-8 px-6 py-2 rounded-full border border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-colors">Zkusit jinou kombinaci</button>
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">Líbí se ti?</p>
+                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-8 py-3 rounded-full border border-indigo-100 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors">Koupit na e-shopu</a>
+                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest pt-4 transition-colors">Zkusit něco jiného</button>
+              </div>
             </div>
           ) : selected ? (
-            <div className="text-center animate-fade-in flex flex-col items-center max-w-lg">
-              <img src={getSafeUrl(selected.imageUrl, 800)} className="max-h-[550px] rounded-[3rem] shadow-2xl bg-white mb-8 border border-slate-50" alt="Produkt" />
-              <div className="space-y-2">
-                <h4 className="text-indigo-950 font-black uppercase text-[18px] tracking-[0.1em]">{selected.name}</h4>
-                <p className="text-indigo-500 font-bold text-[11px] uppercase tracking-[0.4em] opacity-50 italic">Handmade in Czech Republic</p>
+            <div className="glass rounded-[3rem] p-8 md:p-12 text-center flex flex-col items-center animate-fade-in">
+              <img src={getSafeUrl(selected.imageUrl, 800)} className="max-h-[400px] md:max-h-[500px] rounded-[2rem] shadow-xl mb-8 border border-white" alt="Produkt" />
+              <div className="space-y-1">
+                <h4 className="text-slate-900 font-black uppercase text-[16px] tracking-widest">{selected.name}</h4>
+                <p className="text-indigo-400 font-bold text-[10px] uppercase tracking-[0.4em] italic">Yako King Selection</p>
               </div>
             </div>
           ) : (
-            <div className="text-center p-12 max-w-sm flex flex-col items-center">
-               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-10 shadow-inner border border-indigo-50/50">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-               </div>
-               <p className="text-slate-400 text-[11px] font-medium uppercase tracking-[0.2em] leading-loose">
-                 Vítejte v našem studiu.<br/>Nahrajte svou fotku a vyberte si produkt pro spuštění kabinky.
-               </p>
-            </div>
+             <div className="glass rounded-[3rem] p-20 flex flex-col items-center justify-center text-center opacity-40">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Zde se zobrazí tvůj outfit</p>
+             </div>
           )}
         </div>
       </main>
 
-      <footer className="mt-16 mb-8 text-center">
-        <a href="https://www.yakoking.cz" target="_blank" rel="noopener noreferrer" className="opacity-30 hover:opacity-100 transition-opacity">
-           <p className="text-[10px] font-black text-indigo-950 uppercase tracking-[0.5em]">&copy; 2024 Yako King Studio | www.yakoking.cz</p>
+      <footer className="mt-20 mb-10 text-center">
+        <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="group">
+           <p className="text-[10px] font-black text-slate-900/20 uppercase tracking-[0.5em] group-hover:text-indigo-600/60 transition-colors">&copy; 2024 Yako King Studio | www.yakoking.cz</p>
         </a>
       </footer>
     </div>
