@@ -121,9 +121,11 @@ const App = () => {
     
     if (!userFile || !selected || loading) return;
     
-    const apiKey = process.env.API_KEY;
+    // Zajištění přístupu k API klíči i v prostředí bez 'process' shim
+    const apiKey = (window as any).process?.env?.API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : null);
+    
     if (!apiKey) {
-      setError("Chybí konfigurace API klíče.");
+      setError("Chybí konfigurace API klíče. Pokud aplikaci hostujete sami, ujistěte se, že je API_KEY správně nastaven.");
       return;
     }
 
@@ -217,12 +219,12 @@ const App = () => {
             </div>
           </section>
 
-          <div className="pt-4">
+          <div className="pt-4 relative z-50">
             <button 
               type="button"
               onClick={generate} 
               disabled={loading || !userFile || !selected} 
-              className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] pointer-events-auto"
+              className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
             >
               {loading ? 'Generuji...' : 'Vyzkoušet na sobě'}
             </button>
