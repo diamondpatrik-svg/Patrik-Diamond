@@ -92,12 +92,41 @@ const App = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!result) return;
+    try {
+      const response = await fetch(result);
+      const blob = await response.blob();
+      const file = new File([blob], 'yakoking-fit.png', { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Můj Yako King outfit',
+          text: 'Koukni, jak mi sekne tenhle outfit od Yako King! Víc na www.yakoking.cz',
+          url: 'https://www.yakoking.cz',
+        });
+      } else {
+        alert("Sdílení souborů není tvým prohlížečem přímo podporováno. Obrázek si můžeš stáhnout tlačítkem vedle nebo navštívit www.yakoking.cz");
+      }
+    } catch (err) {
+      console.error("Chyba při sdílení:", err);
+    }
+  };
+
   const generate = async () => {
     if (!userFile || !selected) return;
+    
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      setError("API klíč není nastaven. Prosím zkontrolujte konfiguraci prostředí.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       const [uPart, iPart] = await Promise.all([
         fileToPart(userFile), 
         urlToPart(selected.imageUrl)
@@ -120,6 +149,10 @@ const App = () => {
       
       if (imagePart?.inlineData?.data) {
         setResult(`data:image/png;base64,${imagePart.inlineData.data}`);
+        setTimeout(() => {
+           const resEl = document.getElementById('result-section');
+           if (resEl) resEl.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
       } else {
         throw new Error("AI se nepodařilo vytvořit náhled. Zkuste prosím jinou nebo jasnější fotku postavy.");
       }
@@ -141,9 +174,9 @@ const App = () => {
         <p className="text-slate-500 font-medium text-sm md:text-base max-w-xl mx-auto leading-relaxed">Vyber si kousek z naší dílny, nahraj fotku a podívej se, jak ti sekne dřív, než si ho objednáš.</p>
       </header>
 
-      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Ovládací panel */}
-        <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] space-y-8 animate-fade-in order-2 lg:order-1">
+      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Ovládací panel nahoře */}
+        <div className="lg:col-span-4 glass p-6 md:p-8 rounded-[2.5rem] space-y-8 animate-fade-in order-1">
           <section>
             <div className="flex justify-between items-end mb-4">
                <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.2em]">01. Tvoje fotka</h3>
@@ -166,7 +199,7 @@ const App = () => {
 
           <section>
             <h3 className="text-[11px] font-black uppercase text-indigo-900/40 mb-4 tracking-[0.2em]">02. Výběr produktu</h3>
-            <div className="grid grid-cols-4 gap-2.5 max-h-[360px] overflow-y-auto pr-2 clothing-scroll">
+            <div className="grid grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto pr-2 clothing-scroll">
               {CLOTHING_ITEMS.map(item => (
                 <button 
                   key={item.id} 
@@ -195,17 +228,22 @@ const App = () => {
           )}
         </div>
 
-        {/* Hlavní náhled */}
-        <div className="lg:col-span-8 glass rounded-[3rem] p-4 md:p-8 flex flex-col items-center justify-center min-h-[500px] lg:min-h-[800px] relative overflow-hidden animate-fade-in order-1 lg:order-2">
+        {/* Hlavní náhled dole/vpravo */}
+        <div id="result-section" className="lg:col-span-8 glass rounded-[3rem] p-4 md:p-8 flex flex-col items-center justify-center min-h-[400px] lg:min-h-[800px] relative overflow-hidden animate-fade-in order-2">
           {loading ? (
             <Loader />
           ) : result ? (
             <div className="w-full h-full flex flex-col items-center animate-fade-in">
               <div className="relative group max-w-full">
                 <img src={result} className="max-h-[700px] rounded-[2.5rem] shadow-2xl object-contain bg-white border border-indigo-50" alt="Výsledek" />
-                <div className="absolute top-4 right-4 flex gap-2">
-                   <a href={result} download="yakoking-style.png" className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                <div className="absolute top-4 right-4 flex gap-3">
+                   {/* Share Button */}
+                   <button onClick={handleShare} className="w-12 h-12 bg-white/95 backdrop-blur rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-indigo-600" title="Sdílet outfit">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                   </button>
+                   {/* Download Button */}
+                   <a href={result} download="yakoking-style.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white" title="Stáhnout">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
                 </div>
               </div>
@@ -232,8 +270,10 @@ const App = () => {
         </div>
       </main>
 
-      <footer className="mt-16 mb-8 text-center opacity-30">
-        <p className="text-[10px] font-black text-indigo-950 uppercase tracking-[0.5em]">&copy; 2024 Yako King Studio</p>
+      <footer className="mt-16 mb-8 text-center">
+        <a href="https://www.yakoking.cz" target="_blank" rel="noopener noreferrer" className="opacity-30 hover:opacity-100 transition-opacity">
+           <p className="text-[10px] font-black text-indigo-950 uppercase tracking-[0.5em]">&copy; 2024 Yako King Studio | www.yakoking.cz</p>
+        </a>
       </footer>
     </div>
   );
