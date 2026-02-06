@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
-// --- KONSTANTY ---
+// --- KONSTANTY PRODUKTŮ ---
 const CLOTHING_ITEMS = [
   { id: 1, name: 'Béžová mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/7/w61mxk9y4zjf.webp' },
   { id: 2, name: 'Černá mikina s kapucí', imageUrl: 'https://yakoking.cz/images_upd/products/5/pvxjwz8c4yq2.jpg' },
@@ -23,15 +24,16 @@ const CLOTHING_ITEMS = [
 ];
 
 const YAKO_URL = "https://www.yakoking.cz";
+// Robustní proxy pro načítání obrázků z e-shopu bez CORS problémů
 const getSafeUrl = (url: string, width = 800) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&fit=contain&output=webp&n=-1`;
 
-// --- POMOCNÉ FUNKCE ---
+// --- POMOCNÉ FUNKCE PRO AI ---
 const fileToPart = async (file: File) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      if (!result) return reject("Nepodařilo se přečíst nahranou fotku.");
+      if (!result) return reject("Chyba čtení nahraného obrázku.");
       resolve({ inlineData: { data: result.split(',')[1], mimeType: file.type } });
     };
     reader.onerror = () => reject("Chyba při čtení souboru.");
@@ -43,7 +45,7 @@ const urlToPart = async (url: string) => {
   try {
     const safeUrl = getSafeUrl(url, 1000);
     const res = await fetch(safeUrl);
-    if (!res.ok) throw new Error("Produkt se nepodařilo stáhnout.");
+    if (!res.ok) throw new Error("Obrázek produktu se nepodařilo stáhnout.");
     const blob = await res.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -51,12 +53,12 @@ const urlToPart = async (url: string) => {
         const result = reader.result as string;
         resolve({ inlineData: { data: result.split(',')[1], mimeType: 'image/jpeg' } });
       };
-      reader.onerror = () => reject("Chyba při zpracování produktu.");
+      reader.onerror = () => reject("Chyba při převodu produktu.");
       reader.readAsDataURL(blob);
     });
   } catch (err) {
     console.error("UrlToPart error:", err);
-    throw new Error("Nepodařilo se připravit obrázek produktu.");
+    throw new Error("Nepodařilo se připravit data produktu.");
   }
 };
 
@@ -67,8 +69,8 @@ const Loader = () => (
       <div className="absolute inset-0 rounded-full border-[3px] border-indigo-600 border-t-transparent animate-spin"></div>
     </div>
     <div className="mt-10 text-center">
-      <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Navrhuji tvůj styl...</p>
-      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 3 Pro AI v akci</p>
+      <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Navrhuji tvůj outfit...</p>
+      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 3 Pro Studio</p>
     </div>
   </div>
 );
@@ -82,22 +84,19 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(true);
 
-  // Bezpečné získání API klíče bez pádů ReferenceError
+  // Fix: Access process.env.API_KEY directly as per guidelines and fix TypeScript error
   const getApiKey = () => {
-    try {
-      return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-    } catch {
-      return undefined;
-    }
+    return process.env.API_KEY;
   };
 
   useEffect(() => {
     const checkKey = async () => {
-      if (window.aistudio?.hasSelectedApiKey) {
-        const selected = await window.aistudio.hasSelectedApiKey();
+      // Fix: Safely access window.aistudio using any cast to avoid type errors
+      const studio = (window as any).aistudio;
+      if (studio?.hasSelectedApiKey) {
+        const selected = await studio.hasSelectedApiKey();
         setHasKey(selected);
       } else {
-        // Pokud není key dialog k dispozici, zkontrolujeme process.env
         setHasKey(!!getApiKey());
       }
     };
@@ -105,8 +104,11 @@ const App = () => {
   }, []);
 
   const handleSelectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
+    // Fix: Safely access window.aistudio using any cast
+    const studio = (window as any).aistudio;
+    if (studio?.openSelectKey) {
+      await studio.openSelectKey();
+      // Assume the key selection was successful as per race condition guidelines
       setHasKey(true);
       setError(null);
     }
@@ -128,13 +130,16 @@ const App = () => {
     setLoading(true);
     setError(null);
     try {
-      const apiKey = getApiKey();
+      // Fix: Exclusively use process.env.API_KEY for initializing the client
+      const apiKey = process.env.API_KEY;
       if (!apiKey) {
         setHasKey(false);
-        throw new Error("API klíč nebyl nalezen. Prosím vyberte jej v nastavení.");
+        throw new Error("API klíč nebyl vybrán. Prosím klikněte na tlačítko Nastavit klíč.");
       }
 
+      // Vytvoření nové instance Gemini AI přímo před voláním (požadavek pro Gemini 3 Pro)
       const ai = new GoogleGenAI({ apiKey });
+      
       const [uPart, iPart] = await Promise.all([
         fileToPart(userFile), 
         urlToPart(selected.imageUrl)
@@ -144,7 +149,7 @@ const App = () => {
         model: 'gemini-3-pro-image-preview',
         contents: {
           parts: [
-            { text: "VIRTUAL TRY-ON: Take the EXACT clothing item from Image 2 and superimpose it onto the person in Image 1. Maintain the person's face, identity and background perfectly. The final image should look like a professional studio fashion photograph." },
+            { text: "VIRTUAL TRY-ON: Take the EXACT clothing item from Image 2 and superimpose it naturally on the person in Image 1. Keep the person's face, skin, and original background exactly as they are. The result must be a high-quality, realistic professional clothing model photograph." },
             uPart as any, 
             iPart as any
           ]
@@ -153,6 +158,7 @@ const App = () => {
       });
 
       const parts = response.candidates?.[0]?.content?.parts;
+      // Fix: Iterate through all parts to find the image part as per guidelines
       const imagePart = parts?.find((p: any) => p.inlineData);
       
       if (imagePart?.inlineData?.data) {
@@ -161,17 +167,18 @@ const App = () => {
            document.getElementById('result-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       } else {
-        throw new Error("AI nevrátila obrázek. Zkuste prosím jinou fotografii.");
+        throw new Error("AI nevygenerovala obrázek. Zkuste prosím jinou fotografii postavy.");
       }
     } catch (err: any) {
-      console.error("Generation error:", err);
+      console.error("AI Error:", err);
+      // Fix: Handle specific error message for key selection reset
       if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key")) {
         setHasKey(false);
-        setError("Váš API klíč je neplatný. Klikněte na 'Nastavit klíč'.");
+        setError("Váš API klíč vypršel nebo je neplatný. Prosím vyberte jej znovu.");
       } else if (err.message?.includes("Safety")) {
-        setError("AI vyhodnotila obrázek jako nevhodný. Zkuste prosím jinou fotku.");
+        setError("Bezpečnostní filtr AI zablokoval tento obrázek. Zkuste fotku v lepším světle.");
       } else {
-        setError(err.message || "Došlo k technické chybě. Zkuste to za chvíli.");
+        setError(err.message || "Technická chyba serveru. Zkuste to prosím za okamžik.");
       }
     } finally {
       setLoading(false);
@@ -182,36 +189,36 @@ const App = () => {
     <div className="min-h-screen p-4 md:p-10 flex flex-col items-center bg-[#f8faff] text-slate-900">
       <header className="mb-12 text-center animate-fade-in w-full max-w-2xl">
         <div className="inline-block bg-white border border-indigo-100 px-6 py-2 rounded-full mb-6 shadow-sm">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King Studio 3.0</p>
+          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King AI Kabinka</p>
         </div>
-        <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální kabinka</h1>
-        <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">Vyzkoušejte si naše kousky přímo na své fotce.</p>
+        <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální zrcadlo</h1>
+        <p className="text-slate-500 font-medium text-sm md:text-base">Nasaď si náš styl během sekundy přímo ve svém prohlížeči.</p>
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8">
         <div className="glass p-6 md:p-10 rounded-[2.5rem] space-y-10 animate-fade-in relative z-10">
           <section>
             <div className="flex justify-between items-end mb-5">
-               <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">01. Tvůj základ</h3>
-               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">Reset</button>}
+               <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">01. Tvá postava</h3>
+               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">Změnit fotku</button>}
             </div>
             <div className={`relative border-2 border-dashed rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-500 min-h-[160px] ${userImg ? 'border-indigo-200 bg-white' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer'}`}>
               {!userImg && <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />}
               {userImg ? (
-                <img src={userImg} className="w-full max-h-[300px] object-contain" alt="User" />
+                <img src={userImg} className="w-full max-h-[300px] object-contain" alt="Uživatel" />
               ) : (
                 <div className="text-center p-6 pointer-events-none">
                   <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   </div>
-                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Nahraj svou fotku</p>
+                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Klikni a nahraj fotku postavy</p>
                 </div>
               )}
             </div>
           </section>
 
           <section>
-            <h3 className="text-[11px] font-black uppercase text-indigo-900/40 mb-5 tracking-[0.3em]">02. Co si zkusíš?</h3>
+            <h3 className="text-[11px] font-black uppercase text-indigo-900/40 mb-5 tracking-[0.3em]">02. Výběr oblečení</h3>
             <div className="grid grid-cols-4 md:grid-cols-6 gap-3 max-h-[250px] overflow-y-auto pr-2 clothing-scroll">
               {CLOTHING_ITEMS.map(item => (
                 <button 
@@ -229,12 +236,12 @@ const App = () => {
           <div className="pt-4 flex flex-col gap-3">
             {!hasKey ? (
                <div className="flex flex-col items-center p-6 border-2 border-indigo-100 rounded-3xl bg-indigo-50/20 animate-fade-in">
-                  <p className="text-[10px] font-bold text-indigo-900/60 uppercase tracking-widest mb-4 text-center leading-relaxed">
-                    Pro spuštění AI na tomto webu musíte vybrat klíč.<br/>
-                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 underline">Více info o Gemini API</a>
+                  <p className="text-[10px] font-bold text-indigo-900/60 uppercase tracking-widest mb-4 text-center">
+                    Aplikace vyžaduje API klíč pro provoz na vašem hostingu.<br/>
+                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 underline">Více informací</a>
                   </p>
                   <button type="button" onClick={handleSelectKey} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-lg hover:bg-indigo-700 transition-colors">
-                    Nastavit klíč k AI
+                    Aktivovat AI přes klíč
                   </button>
                </div>
             ) : (
@@ -244,15 +251,15 @@ const App = () => {
                 disabled={loading || !userFile || !selected} 
                 className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
               >
-                {loading ? 'Generuji...' : 'Vyzkoušet na sobě'}
+                {loading ? 'AI PRACUJE...' : 'VYGENEROVAT OUTFIT'}
               </button>
             )}
           </div>
           
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 rounded-2xl animate-fade-in text-center">
-              <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest leading-relaxed">{error}</p>
-              <button onClick={() => window.location.reload()} className="text-[9px] mt-2 font-black text-red-700 underline uppercase tracking-tighter">Restartovat aplikaci</button>
+              <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest">{error}</p>
+              <button onClick={() => window.location.reload()} className="text-[9px] mt-2 font-black text-red-700 underline uppercase tracking-tighter">Zkusit restartovat aplikaci</button>
             </div>
           )}
         </div>
@@ -264,23 +271,23 @@ const App = () => {
             </div>
           ) : result ? (
             <div className="glass rounded-[3rem] p-6 md:p-10 flex flex-col items-center animate-fade-in space-y-8">
-              <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">Tvůj nový fit</h3>
+              <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">Tvůj Yako King styl</h3>
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
-                <div className="absolute top-4 right-4 flex gap-3">
-                   <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white">
+                <div className="absolute top-4 right-4">
+                   <a href={result} download="muj-yako-king-fit.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
                 </div>
               </div>
               <div className="flex flex-col items-center gap-4">
-                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-8 py-3 rounded-full border border-indigo-100 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors">Koupit na e-shopu</a>
-                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest pt-4">Zkusit něco jiného</button>
+                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-8 py-3 rounded-full border border-indigo-100 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors">Objednat na e-shopu</a>
+                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest">Zkusit jinou kombinaci</button>
               </div>
             </div>
           ) : (
              <div className="glass rounded-[3rem] p-20 flex flex-col items-center justify-center text-center opacity-40">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Zde se zobrazí tvůj outfit</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Tady uvidíš svůj nový fit</p>
              </div>
           )}
         </div>
