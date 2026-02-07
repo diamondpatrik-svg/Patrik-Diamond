@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
@@ -24,10 +23,8 @@ const CLOTHING_ITEMS = [
 ];
 
 const YAKO_URL = "https://www.yakoking.cz";
-// Robustní proxy pro načítání obrázků z e-shopu bez CORS problémů
 const getSafeUrl = (url: string, width = 800) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&fit=contain&output=webp&n=-1`;
 
-// --- POMOCNÉ FUNKCE PRO AI ---
 const fileToPart = async (file: File) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -84,14 +81,12 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(true);
 
-  // Fix: Access process.env.API_KEY directly as per guidelines and fix TypeScript error
   const getApiKey = () => {
     return process.env.API_KEY;
   };
 
   useEffect(() => {
     const checkKey = async () => {
-      // Fix: Safely access window.aistudio using any cast to avoid type errors
       const studio = (window as any).aistudio;
       if (studio?.hasSelectedApiKey) {
         const selected = await studio.hasSelectedApiKey();
@@ -104,11 +99,9 @@ const App = () => {
   }, []);
 
   const handleSelectKey = async () => {
-    // Fix: Safely access window.aistudio using any cast
     const studio = (window as any).aistudio;
     if (studio?.openSelectKey) {
       await studio.openSelectKey();
-      // Assume the key selection was successful as per race condition guidelines
       setHasKey(true);
       setError(null);
     }
@@ -124,20 +117,42 @@ const App = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!result) return;
+    
+    try {
+      // Převod base64 na File pro sdílení
+      const response = await fetch(result);
+      const blob = await response.blob();
+      const file = new File([blob], 'yako-king-fit.png', { type: 'image/png' });
+
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Můj nový Yako King outfit!',
+          text: `Podívej se na můj nový fit z Yako King Studio! Vyzkoušej si ho taky na ${YAKO_URL}`,
+          files: [file],
+        });
+      } else {
+        // Fallback pro desktop - kopírování odkazu nebo prosté otevření e-shopu
+        alert("Funkce přímého sdílení není ve vašem prohlížeči podporována. Obrázek si můžete stáhnout pomocí tlačítka se šipkou.");
+      }
+    } catch (err) {
+      console.error("Chyba při sdílení:", err);
+    }
+  };
+
   const generate = async () => {
     if (!userFile || !selected || loading) return;
 
     setLoading(true);
     setError(null);
     try {
-      // Fix: Exclusively use process.env.API_KEY for initializing the client
       const apiKey = process.env.API_KEY;
       if (!apiKey) {
         setHasKey(false);
-        throw new Error("API klíč nebyl vybrán. Prosím klikněte na tlačítko Nastavit klíč.");
+        throw new Error("API klíč nebyl vybrán.");
       }
 
-      // Vytvoření nové instance Gemini AI přímo před voláním (požadavek pro Gemini 3 Pro)
       const ai = new GoogleGenAI({ apiKey });
       
       const [uPart, iPart] = await Promise.all([
@@ -158,7 +173,6 @@ const App = () => {
       });
 
       const parts = response.candidates?.[0]?.content?.parts;
-      // Fix: Iterate through all parts to find the image part as per guidelines
       const imagePart = parts?.find((p: any) => p.inlineData);
       
       if (imagePart?.inlineData?.data) {
@@ -171,10 +185,9 @@ const App = () => {
       }
     } catch (err: any) {
       console.error("AI Error:", err);
-      // Fix: Handle specific error message for key selection reset
-      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key")) {
+      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key") || err.message?.includes("billing")) {
         setHasKey(false);
-        setError("Váš API klíč vypršel nebo je neplatný. Prosím vyberte jej znovu.");
+        setError("Chyba API klíče: Pro tento model (Gemini 3 Pro) Google vyžaduje projekt s aktivovaným billingem (platební kartou). Vygenerování jednoho obrázku stojí řádově jen pár haléřů.");
       } else if (err.message?.includes("Safety")) {
         setError("Bezpečnostní filtr AI zablokoval tento obrázek. Zkuste fotku v lepším světle.");
       } else {
@@ -189,10 +202,10 @@ const App = () => {
     <div className="min-h-screen p-4 md:p-10 flex flex-col items-center bg-[#f8faff] text-slate-900">
       <header className="mb-12 text-center animate-fade-in w-full max-w-2xl">
         <div className="inline-block bg-white border border-indigo-100 px-6 py-2 rounded-full mb-6 shadow-sm">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King AI Kabinka</p>
+          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King AI Studio</p>
         </div>
-        <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální zrcadlo</h1>
-        <p className="text-slate-500 font-medium text-sm md:text-base">Nasaď si náš styl během sekundy přímo ve svém prohlížeči.</p>
+        <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální kabinka</h1>
+        <p className="text-slate-500 font-medium text-sm md:text-base">Zkuste si náš styl bez převlékání. Stačí jedna fotka.</p>
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8">
@@ -200,7 +213,7 @@ const App = () => {
           <section>
             <div className="flex justify-between items-end mb-5">
                <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">01. Tvá postava</h3>
-               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">Změnit fotku</button>}
+               {userImg && <button type="button" onClick={() => {setUserImg(null); setUserFile(null); setResult(null);}} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">Změnit</button>}
             </div>
             <div className={`relative border-2 border-dashed rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-500 min-h-[160px] ${userImg ? 'border-indigo-200 bg-white' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer'}`}>
               {!userImg && <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />}
@@ -211,7 +224,7 @@ const App = () => {
                   <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   </div>
-                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Klikni a nahraj fotku postavy</p>
+                  <p className="text-indigo-600 font-black text-[10px] uppercase tracking-widest">Nahrát tvou fotku</p>
                 </div>
               )}
             </div>
@@ -236,13 +249,15 @@ const App = () => {
           <div className="pt-4 flex flex-col gap-3">
             {!hasKey ? (
                <div className="flex flex-col items-center p-6 border-2 border-indigo-100 rounded-3xl bg-indigo-50/20 animate-fade-in">
-                  <p className="text-[10px] font-bold text-indigo-900/60 uppercase tracking-widest mb-4 text-center">
-                    Aplikace vyžaduje API klíč pro provoz na vašem hostingu.<br/>
-                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 underline">Více informací</a>
+                  <h4 className="text-[12px] font-black text-indigo-900 uppercase tracking-widest mb-2">Vyžadován API klíč (Paid Tier)</h4>
+                  <p className="text-[10px] text-indigo-900/70 text-center mb-4 leading-relaxed">
+                    Tato AI funkce používá model <strong>Gemini 3 Pro</strong>. Google u něj vyžaduje projekt s aktivovaným billingem. <br/>
+                    <em>Nebojte se, cena za jeden obrázek je jen pár haléřů a Google dává novým účtům 300 USD kredit zdarma.</em>
                   </p>
                   <button type="button" onClick={handleSelectKey} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-lg hover:bg-indigo-700 transition-colors">
-                    Aktivovat AI přes klíč
+                    Nastavit / Vybrat API Klíč
                   </button>
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="mt-3 text-[9px] font-bold text-indigo-600 underline uppercase tracking-tighter">Jak zapnout billing v Google AI Studiu?</a>
                </div>
             ) : (
               <button 
@@ -251,15 +266,15 @@ const App = () => {
                 disabled={loading || !userFile || !selected} 
                 className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
               >
-                {loading ? 'AI PRACUJE...' : 'VYGENEROVAT OUTFIT'}
+                {loading ? 'AI PRACUJE...' : 'NASADIT OUTFIT'}
               </button>
             )}
           </div>
           
           {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl animate-fade-in text-center">
-              <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest">{error}</p>
-              <button onClick={() => window.location.reload()} className="text-[9px] mt-2 font-black text-red-700 underline uppercase tracking-tighter">Zkusit restartovat aplikaci</button>
+            <div className="p-5 bg-red-50 border border-red-100 rounded-2xl animate-fade-in text-center">
+              <p className="text-red-600 font-bold text-[10px] uppercase tracking-widest leading-normal">{error}</p>
+              <button onClick={() => window.location.reload()} className="text-[9px] mt-3 font-black text-red-700 underline uppercase tracking-tighter">Zkusit restartovat aplikaci</button>
             </div>
           )}
         </div>
@@ -271,18 +286,41 @@ const App = () => {
             </div>
           ) : result ? (
             <div className="glass rounded-[3rem] p-6 md:p-10 flex flex-col items-center animate-fade-in space-y-8">
-              <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em]">Tvůj Yako King styl</h3>
+              <div className="text-center">
+                <h3 className="text-[11px] font-black uppercase text-indigo-900/40 tracking-[0.3em] mb-2">Tvůj nový Yako King fit</h3>
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest italic">Nezapomeň se pochlubit!</p>
+              </div>
+              
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
-                <div className="absolute top-4 right-4">
-                   <a href={result} download="muj-yako-king-fit.png" className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform text-white">
+                
+                {/* Overlay tlačítka na mobilu i desktopu */}
+                <div className="absolute top-4 right-4 flex flex-col gap-3">
+                   <a href={result} download="yako-king-fit.png" title="Stáhnout fotografii" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
+                   <button onClick={handleShare} title="Sdílet výsledek" className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                   </button>
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-4">
-                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-8 py-3 rounded-full border border-indigo-100 text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors">Objednat na e-shopu</a>
-                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest">Zkusit jinou kombinaci</button>
+
+              <div className="flex flex-col items-center gap-4 w-full">
+                <button 
+                  onClick={handleShare}
+                  className="w-full max-w-xs py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-100 transition-colors flex items-center justify-center gap-3"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                  Sdílet můj Yako King styl
+                </button>
+
+                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-10 py-4 rounded-full border border-indigo-100 text-[12px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors shadow-sm text-center">
+                  Koupit tento kousek na e-shopu
+                </a>
+
+                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4">
+                  Zkusit jinou kombinaci
+                </button>
               </div>
             </div>
           ) : (
