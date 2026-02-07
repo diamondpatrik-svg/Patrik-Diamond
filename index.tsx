@@ -67,7 +67,7 @@ const Loader = () => (
     </div>
     <div className="mt-10 text-center">
       <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Navrhuji tvůj outfit...</p>
-      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 3 Pro Studio</p>
+      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 2.5 Flash Studio</p>
     </div>
   </div>
 );
@@ -121,7 +121,6 @@ const App = () => {
     if (!result) return;
     
     try {
-      // Převod base64 na File pro sdílení
       const response = await fetch(result);
       const blob = await response.blob();
       const file = new File([blob], 'yako-king-fit.png', { type: 'image/png' });
@@ -133,8 +132,7 @@ const App = () => {
           files: [file],
         });
       } else {
-        // Fallback pro desktop - kopírování odkazu nebo prosté otevření e-shopu
-        alert("Funkce přímého sdílení není ve vašem prohlížeči podporována. Obrázek si můžete stáhnout pomocí tlačítka se šipkou.");
+        alert("Sdílení není podporováno. Obrázek si uložte pomocí tlačítka pro stažení.");
       }
     } catch (err) {
       console.error("Chyba při sdílení:", err);
@@ -161,7 +159,7 @@ const App = () => {
       ]);
       
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
             { text: "VIRTUAL TRY-ON: Take the EXACT clothing item from Image 2 and superimpose it naturally on the person in Image 1. Keep the person's face, skin, and original background exactly as they are. The result must be a high-quality, realistic professional clothing model photograph." },
@@ -169,7 +167,11 @@ const App = () => {
             iPart as any
           ]
         },
-        config: { imageConfig: { aspectRatio: "3:4", imageSize: "1K" } }
+        config: { 
+          imageConfig: { 
+            aspectRatio: "3:4"
+          } 
+        }
       });
 
       const parts = response.candidates?.[0]?.content?.parts;
@@ -181,17 +183,17 @@ const App = () => {
            document.getElementById('result-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       } else {
-        throw new Error("AI nevygenerovala obrázek. Zkuste prosím jinou fotografii postavy.");
+        throw new Error("AI nevygenerovala obrázek. Zkuste jinou fotku postavy.");
       }
     } catch (err: any) {
       console.error("AI Error:", err);
-      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key") || err.message?.includes("billing")) {
+      if (err.message?.includes("API key") || err.message?.includes("billing") || err.message?.includes("403") || err.message?.includes("entity was not found")) {
         setHasKey(false);
-        setError("Chyba API klíče: Pro tento model (Gemini 3 Pro) Google vyžaduje projekt s aktivovaným billingem (platební kartou). Vygenerování jednoho obrázku stojí řádově jen pár haléřů.");
+        setError("Chyba přístupu: I pro verzi Gemini 2.5 může Google vyžadovat správně nastavený projekt v AI Studiu.");
       } else if (err.message?.includes("Safety")) {
-        setError("Bezpečnostní filtr AI zablokoval tento obrázek. Zkuste fotku v lepším světle.");
+        setError("Bezpečnostní filtr AI zablokoval tento obrázek. Zkuste jinou fotku.");
       } else {
-        setError(err.message || "Technická chyba serveru. Zkuste to prosím za okamžik.");
+        setError(err.message || "Technická chyba. Zkuste to za chvíli.");
       }
     } finally {
       setLoading(false);
@@ -246,15 +248,14 @@ const App = () => {
           <div className="pt-4 flex flex-col gap-3">
             {!hasKey ? (
                <div className="flex flex-col items-center p-6 border-2 border-indigo-100 rounded-3xl bg-indigo-50/20 animate-fade-in">
-                  <h4 className="text-[12px] font-black text-indigo-900 uppercase tracking-widest mb-2">Vyžadován API klíč (Paid Tier)</h4>
+                  <h4 className="text-[12px] font-black text-indigo-900 uppercase tracking-widest mb-2">Nastavení API Klíče</h4>
                   <p className="text-[10px] text-indigo-900/70 text-center mb-4 leading-relaxed">
-                    Tato AI funkce používá model <strong>Gemini 3 Pro</strong>. Google u něj vyžaduje projekt s aktivovaným billingem. <br/>
-                    <em>Nebojte se, cena za jeden obrázek je jen pár haléřů a Google dává novým účtům 300 USD kredit zdarma.</em>
+                    Nyní používáme model <strong>Gemini 2.5 Flash</strong>, který je dostupnější. <br/>
+                    Pokud vidíte chybu, ujistěte se, že máte v Google AI Studiu vytvořený API klíč.
                   </p>
                   <button type="button" onClick={handleSelectKey} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-lg hover:bg-indigo-700 transition-colors">
-                    Nastavit / Vybrat API Klíč
+                    Zvolit API Klíč
                   </button>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="mt-3 text-[9px] font-bold text-indigo-600 underline uppercase tracking-tighter">Jak zapnout billing v Google AI Studiu?</a>
                </div>
             ) : (
               <button 
@@ -271,7 +272,7 @@ const App = () => {
           {error && (
             <div className="p-5 bg-red-50 border border-red-100 rounded-2xl animate-fade-in text-center">
               <p className="text-red-600 font-bold text-[10px] uppercase tracking-widest leading-normal">{error}</p>
-              <button onClick={() => window.location.reload()} className="text-[9px] mt-3 font-black text-red-700 underline uppercase tracking-tighter">Zkusit restartovat aplikaci</button>
+              <button onClick={() => window.location.reload()} className="text-[9px] mt-3 font-black text-red-700 underline uppercase tracking-tighter">Restartovat aplikaci</button>
             </div>
           )}
         </div>
@@ -291,12 +292,11 @@ const App = () => {
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
                 
-                {/* Overlay tlačítka na mobilu i desktopu */}
                 <div className="absolute top-4 right-4 flex flex-col gap-3">
-                   <a href={result} download="yako-king-fit.png" title="Stáhnout fotografii" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <a href={result} download="yako-king-fit.png" title="Stáhnout" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
-                   <button onClick={handleShare} title="Sdílet výsledek" className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <button onClick={handleShare} title="Sdílet" className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                    </button>
                 </div>
@@ -308,7 +308,7 @@ const App = () => {
                   className="w-full max-w-xs py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-100 transition-colors flex items-center justify-center gap-3"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                  Sdílet můj Yako King styl
+                  Sdílet můj fit
                 </button>
 
                 <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4">
