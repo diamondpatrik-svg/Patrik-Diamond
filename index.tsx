@@ -201,9 +201,6 @@ const App = () => {
   return (
     <div className="min-h-screen p-4 md:p-10 flex flex-col items-center bg-[#f8faff] text-slate-900">
       <header className="mb-12 text-center animate-fade-in w-full max-w-2xl">
-        <div className="inline-block bg-white border border-indigo-100 px-6 py-2 rounded-full mb-6 shadow-sm">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.5em]">Yako King AI Studio</p>
-        </div>
         <h1 className="text-4xl md:text-6xl font-black text-slate-950 italic tracking-tighter leading-none mb-4">Virtuální kabinka</h1>
         <p className="text-slate-500 font-medium text-sm md:text-base">Zkuste si náš styl bez převlékání. Stačí jedna fotka.</p>
       </header>
@@ -313,10 +310,6 @@ const App = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                   Sdílet můj Yako King styl
                 </button>
-
-                <a href={YAKO_URL} target="_blank" rel="noopener noreferrer" className="px-10 py-4 rounded-full border border-indigo-100 text-[12px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors shadow-sm text-center">
-                  Koupit tento kousek na e-shopu
-                </a>
 
                 <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4">
                   Zkusit jinou kombinaci
