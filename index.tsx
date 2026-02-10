@@ -25,6 +25,18 @@ const CLOTHING_ITEMS = [
 const YAKO_URL = "https://www.yakoking.cz";
 const getSafeUrl = (url: string, width = 800) => `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&fit=contain&output=webp&n=-1`;
 
+const base64ToFile = (base64: string, filename: string): File => {
+  const arr = base64.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+};
+
 const fileToPart = async (file: File) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -93,20 +105,32 @@ const App = () => {
   const handleShare = async () => {
     if (!result) return;
     try {
-      const response = await fetch(result);
-      const blob = await response.blob();
-      const file = new File([blob], 'yako-king-fit.png', { type: 'image/png' });
-      if (navigator.share) {
+      const file = base64ToFile(result, 'yako-king-fit.png');
+      const shareData = {
+        title: 'Můj nový Yako King outfit!',
+        text: `Podívej se na můj nový fit z Yako King Studio! Vyzkoušej si ho taky na ${YAKO_URL}`,
+        files: [file],
+      };
+
+      // 1. Zkusíme sdílet i s obrázkem, pokud to prohlížeč dovolí
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share(shareData);
+      } 
+      // 2. Fallback: Zkusíme sdílet jen text, pokud sdílení existuje
+      else if (navigator.share) {
         await navigator.share({
-          title: 'Můj nový Yako King outfit!',
-          text: `Podívej se na můj nový fit z Yako King Studio! Vyzkoušej si ho taky na ${YAKO_URL}`,
-          files: [file],
+          title: shareData.title,
+          text: shareData.text,
+          url: YAKO_URL
         });
-      } else {
-        alert("Sdílení není v tomto prohlížeči podporováno. Obrázek si uložte pomocí tlačítka pro stažení.");
+      } 
+      // 3. Poslední možnost: Upozornění pro uživatele
+      else {
+        throw new Error("Sdílení není podporováno");
       }
     } catch (err) {
       console.error("Chyba při sdílení:", err);
+      alert("Přímé sdílení není v tomto prohlížeči dostupné. Obrázek si uložte tlačítkem pro stažení (šipka dolů) a pošlete jej přátelům ručně!");
     }
   };
 
@@ -236,10 +260,10 @@ const App = () => {
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
                 <div className="absolute top-4 right-4 flex flex-col gap-3">
-                   <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
-                   <button onClick={handleShare} className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <button onClick={handleShare} className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                    </button>
                 </div>
@@ -248,11 +272,11 @@ const App = () => {
               <div className="flex flex-col items-center gap-4 w-full">
                 <button 
                   onClick={handleShare}
-                  className="w-full max-w-xs py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-100 transition-colors flex items-center justify-center gap-3"
+                  className="w-full max-w-xs py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-100 transition-colors flex items-center justify-center gap-3 cursor-pointer"
                 >
                   Sdílet můj fit
                 </button>
-                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4">
+                <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4 cursor-pointer">
                   Zkusit jinou kombinaci
                 </button>
               </div>
