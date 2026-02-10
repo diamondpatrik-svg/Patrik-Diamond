@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
@@ -67,7 +67,7 @@ const Loader = () => (
     </div>
     <div className="mt-10 text-center">
       <p className="text-indigo-600 font-black text-[11px] uppercase tracking-[0.4em] animate-pulse">Navrhuji tvůj outfit...</p>
-      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 2.5 Flash Studio</p>
+      <p className="mt-2 text-slate-400 text-[9px] uppercase tracking-widest font-medium italic">Gemini 2.5 Flash Engine</p>
     </div>
   </div>
 );
@@ -79,33 +79,6 @@ const App = () => {
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasKey, setHasKey] = useState(true);
-
-  const getApiKey = () => {
-    return process.env.API_KEY;
-  };
-
-  useEffect(() => {
-    const checkKey = async () => {
-      const studio = (window as any).aistudio;
-      if (studio?.hasSelectedApiKey) {
-        const selected = await studio.hasSelectedApiKey();
-        setHasKey(selected);
-      } else {
-        setHasKey(!!getApiKey());
-      }
-    };
-    checkKey();
-  }, []);
-
-  const handleSelectKey = async () => {
-    const studio = (window as any).aistudio;
-    if (studio?.openSelectKey) {
-      await studio.openSelectKey();
-      setHasKey(true);
-      setError(null);
-    }
-  };
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,12 +92,10 @@ const App = () => {
 
   const handleShare = async () => {
     if (!result) return;
-    
     try {
       const response = await fetch(result);
       const blob = await response.blob();
       const file = new File([blob], 'yako-king-fit.png', { type: 'image/png' });
-
       if (navigator.share) {
         await navigator.share({
           title: 'Můj nový Yako King outfit!',
@@ -132,7 +103,7 @@ const App = () => {
           files: [file],
         });
       } else {
-        alert("Sdílení není podporováno. Obrázek si uložte pomocí tlačítka pro stažení.");
+        alert("Sdílení není v tomto prohlížeči podporováno. Obrázek si uložte pomocí tlačítka pro stažení.");
       }
     } catch (err) {
       console.error("Chyba při sdílení:", err);
@@ -141,18 +112,13 @@ const App = () => {
 
   const generate = async () => {
     if (!userFile || !selected || loading) return;
-
     setLoading(true);
     setError(null);
     try {
       const apiKey = process.env.API_KEY;
-      if (!apiKey) {
-        setHasKey(false);
-        throw new Error("API klíč nebyl vybrán.");
-      }
+      if (!apiKey) throw new Error("Systémová chyba: API klíč není nakonfigurován.");
 
       const ai = new GoogleGenAI({ apiKey });
-      
       const [uPart, iPart] = await Promise.all([
         fileToPart(userFile), 
         urlToPart(selected.imageUrl)
@@ -167,11 +133,7 @@ const App = () => {
             iPart as any
           ]
         },
-        config: { 
-          imageConfig: { 
-            aspectRatio: "3:4"
-          } 
-        }
+        config: { imageConfig: { aspectRatio: "3:4" } }
       });
 
       const parts = response.candidates?.[0]?.content?.parts;
@@ -187,14 +149,7 @@ const App = () => {
       }
     } catch (err: any) {
       console.error("AI Error:", err);
-      if (err.message?.includes("API key") || err.message?.includes("billing") || err.message?.includes("403") || err.message?.includes("entity was not found")) {
-        setHasKey(false);
-        setError("Chyba přístupu: I pro verzi Gemini 2.5 může Google vyžadovat správně nastavený projekt v AI Studiu.");
-      } else if (err.message?.includes("Safety")) {
-        setError("Bezpečnostní filtr AI zablokoval tento obrázek. Zkuste jinou fotku.");
-      } else {
-        setError(err.message || "Technická chyba. Zkuste to za chvíli.");
-      }
+      setError(err.message || "Technická chyba. Zkuste to za chvíli.");
     } finally {
       setLoading(false);
     }
@@ -245,28 +200,15 @@ const App = () => {
             </div>
           </section>
 
-          <div className="pt-4 flex flex-col gap-3">
-            {!hasKey ? (
-               <div className="flex flex-col items-center p-6 border-2 border-indigo-100 rounded-3xl bg-indigo-50/20 animate-fade-in">
-                  <h4 className="text-[12px] font-black text-indigo-900 uppercase tracking-widest mb-2">Nastavení API Klíče</h4>
-                  <p className="text-[10px] text-indigo-900/70 text-center mb-4 leading-relaxed">
-                    Nyní používáme model <strong>Gemini 2.5 Flash</strong>, který je dostupnější. <br/>
-                    Pokud vidíte chybu, ujistěte se, že máte v Google AI Studiu vytvořený API klíč.
-                  </p>
-                  <button type="button" onClick={handleSelectKey} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-lg hover:bg-indigo-700 transition-colors">
-                    Zvolit API Klíč
-                  </button>
-               </div>
-            ) : (
-              <button 
-                type="button"
-                onClick={generate} 
-                disabled={loading || !userFile || !selected} 
-                className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
-              >
-                {loading ? 'AI PRACUJE...' : 'NASADIT OUTFIT'}
-              </button>
-            )}
+          <div className="pt-4">
+            <button 
+              type="button"
+              onClick={generate} 
+              disabled={loading || !userFile || !selected} 
+              className="w-full py-6 btn-grad text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-[0.5em] text-[13px] flex items-center justify-center"
+            >
+              {loading ? 'AI PRACUJE...' : 'NASADIT OUTFIT'}
+            </button>
           </div>
           
           {error && (
@@ -291,12 +233,11 @@ const App = () => {
               
               <div className="relative group w-full max-w-md">
                 <img src={result} className="w-full rounded-[2rem] shadow-2xl border border-indigo-50" alt="Výsledek" />
-                
                 <div className="absolute top-4 right-4 flex flex-col gap-3">
-                   <a href={result} download="yako-king-fit.png" title="Stáhnout" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <a href={result} download="yako-king-fit.png" className="w-12 h-12 bg-white/90 backdrop-blur text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                    </a>
-                   <button onClick={handleShare} title="Sdílet" className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                   <button onClick={handleShare} className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                    </button>
                 </div>
@@ -307,10 +248,8 @@ const App = () => {
                   onClick={handleShare}
                   className="w-full max-w-xs py-4 bg-indigo-50 text-indigo-600 font-black rounded-2xl uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-100 transition-colors flex items-center justify-center gap-3"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                   Sdílet můj fit
                 </button>
-
                 <button type="button" onClick={() => setResult(null)} className="text-slate-300 hover:text-slate-500 text-[9px] uppercase font-black tracking-widest mt-4">
                   Zkusit jinou kombinaci
                 </button>
