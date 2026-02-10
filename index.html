@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -6,8 +7,9 @@
     <title>Yako King | Virtuální kabinka</title>
 
     <script>
-      // Prevence chyby "process is not defined" v prohlížeči
+      // API klíč vložen přímo pro funkčnost na vašem e-shopu
       window.process = window.process || { env: {} };
+      window.process.env.API_KEY = "AIzaSyDMOlkImYLN5oijhjQbS8chjJFmiSKCLls";
     </script>
     
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -32,7 +34,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         
         #root:empty::after {
-            content: 'Yako King Studio...';
+            content: 'Načítám Yako King Studio...';
             display: block;
             text-align: center;
             padding: 100px 20px;

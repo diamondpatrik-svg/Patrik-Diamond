@@ -116,7 +116,9 @@ const App = () => {
     setError(null);
     try {
       const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("Systémová chyba: API klíč není nakonfigurován.");
+      if (!apiKey) {
+        throw new Error("API klíč není nastaven. Pokud aplikaci spouštíte na vlastním webu, musíte v index.html definovat proměnnou window.process.env.API_KEY se svým klíčem.");
+      }
 
       const ai = new GoogleGenAI({ apiKey });
       const [uPart, iPart] = await Promise.all([
